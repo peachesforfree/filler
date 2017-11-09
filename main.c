@@ -183,17 +183,20 @@ char		**make_mini_map(t_parse *piece, t_fil *fil)
 	char **mini_piece;
 
 	y = -1;
-	mini_piece = (char**)ft_calloc((piece->y_bottom - piece->y_top) + 1, (piece->x_right - piece->x_left) + 1);
+	mini_piece = (char**)malloc(sizeof(char*) * (piece->y_bottom - piece->y_top));
+	dprintf(2, "\n\t\tminimap y=%i\tx=%i\n", ((piece->y_bottom - piece->y_top) + 1), ((piece->x_right - piece->x_left) + 2));
 	fil->mini_piece_x = (piece->x_right - piece->x_left);
 	fil->mini_piece_y = (piece->y_bottom - piece->y_top);
 	while ((++y + piece->y_top) <= piece->y_bottom)
 	{
 		x = -1;
+		mini_piece[y] = (char*)malloc(sizeof(char) * (piece->x_right - piece->x_left) + 2);
 		while ((++x + piece->x_left) <= piece->x_right)
 		{
 			mini_piece[y][x] = fil->piece[y + piece->y_top][x + piece->x_left];
 		}
 		mini_piece[y][x] = '\0';
+		dprintf(2, "\n\t\tprinted piece mini_piece[%i] = %s\n", y, mini_piece[y]); 
 	}
 	return (mini_piece);
 }
@@ -208,20 +211,24 @@ void		make_mini_piece(t_fil *fil)
 	piece.y_bottom = from_bottom(fil);
 	fil->mini_piece = make_mini_map(&piece, fil);
 	fil->mini_x_offset = piece.x_left;
+	dprintf(2,">\t\tx_offset <%i>\n", fil->mini_x_offset);
 	fil->mini_y_offset = piece.y_top;
+	dprintf(2,">\t\ty_offset <%i>\n", fil->mini_y_offset);
 }
 
 void		read_piece(t_fil *fil, char *line)
 {
 	int i;
 
-	i = 0;
-	while (i < fil->piece_y)
+	i = -1;
+	while (++i < fil->piece_y)
 	{
 		fil->piece[i] = line;
-		get_next_line(fil->fd, &line);
-		i++;
-		dprintf(2, "\t\t%s\n", line);
+		if ((i + 1) < fil->piece_y)
+		{
+			get_next_line(fil->fd, &line);
+			dprintf(2, ">\tpiece read %s\n", line);
+		}
 	}
 	make_mini_piece(fil);
 }
@@ -267,15 +274,19 @@ void		get_board_info(t_fil *fil, char *line)
 	fil->board = (char**)malloc(fil->board_y * sizeof(char*));
 }
 
+/*
+**given x and y coord on the map, we can check the mini map against it.
+*/
+
 int		check_place_validity(int board_x, int board_y, t_fil *fil)
 {
 	int x;
 	int y;
 
-	if ((fil->mini_piece_x + board_x) >= fil->board_x || (fil->mini_piece_y + board_y) >= fil->board_y)
-		return (0);
+	//if ((fil->mini_piece_x + board_x) >= fil->board_x || (fil->mini_piece_y + board_y) >= fil->board_y)
+	//	return (0);
 	y = -1;
-	while (++y < fil->mini_piece_y )
+	while (++y <= fil->mini_piece_y )
 	{
 		x = -1;
 		while (++x < fil->mini_piece_x )
@@ -306,8 +317,11 @@ void	place_to_right(t_fil *fil)
 			if(check_place_validity(x, y, fil))
 			{
 				fil->put_piece_x = (x - fil->mini_x_offset);
+				dprintf(2, ">fil->put_piece_x = (%i - %i)\n", x, fil->mini_x_offset);
 				fil->put_piece_y = (y - fil->mini_y_offset);
-				return;
+				dprintf(2, ">fil->put_piece_y = (%i - %i)\n", y, fil->mini_y_offset);
+				x = -1;
+				y = fil->board_x;
 			}	
 		}
 	}
@@ -319,26 +333,11 @@ void	print_location(t_fil *fil)
 	ft_putchar(' ');
 	ft_putnbr(fil->put_piece_y);
 	ft_putchar('\n');
-	dprintf(2, "\t\t\tCo-ord:%i %i\n", fil->put_piece_x, fil->put_piece_y);
+	dprintf(2, ">\t\t\tCo-ord:%i %i\n", fil->put_piece_x, fil->put_piece_y);
 }
 
-/*
-**	Here we start by reading the first two lines
-**		who is player one and player two
-**		then the dimentions of the board
-**	Then we stick in the while loop for the durration of the program
-**		reading the map again,
-**		reading each new piece 
-**		compute next move
-**		return the plcement value of the next piece 
-*/
-int		main(void)
+int		read_parse_maps(t_fil *fil, char *line)
 {
-	t_fil	*fil;
-	char	*line;
-
-	fil = initialize_values();
-	fil->fd = open("test.txt", O_RDONLY);
 	while (get_next_line(fil->fd, &line))
 	{
 		dprintf(2,">\t%s\n", line);
@@ -364,19 +363,40 @@ int		main(void)
 		}
 		if (ft_strchr(&line[0],' '))		//might get problems here when at end of reading map and piece
 			continue;
-		read_piece(fil, line);
-		place_to_right(fil);
-		print_location(fil);
+		if (line[0] == '*' || line[0] == '.')
+		{
+			read_piece(fil, line);
+			//if (fil->piece[fil->piece_y] != NULL)
+				break;
+		}
+
 	}
-	return(0);
+	return (1);
 }
 
 /*
-I am currently seg faulting at line 103
-x = 0 and y = 5 
-The cause looks to be because the line for the piece starts at 1 and counts vs. starting at zero on usual array
-when counting thru the piece map, there is a segfault beacuse y goes one too far.
-
-solution;
-maybe when making array and populating start counting at 1 rather than 0.
+**	Here we start by reading the first two lines
+**		who is player one and player two
+**		then the dimentions of the board
+**	Then we stick in the while loop for the durration of the program
+**		reading the map again,
+**		reading each new piece 
+**		compute next move
+**		return the plcement value of the next piece 
 */
+int		main(void)
+{
+	t_fil	*fil;
+	char	*line;
+
+	fil = initialize_values();
+	//fil->fd = open("test.txt", O_RDONLY);
+	while (read_parse_maps(fil, line))
+	{
+		place_to_right(fil);
+		print_location(fil);
+		sleep(1);
+	}
+	printf("0 0");
+	return(0);
+}
