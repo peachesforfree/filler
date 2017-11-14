@@ -20,11 +20,6 @@ typedef struct	s_fil
 	int			piece_y;
 	char		**piece;	// where the piece is saved
 	int			fd;			//reading from this file descriptor
-	int			**heat_map;
-	int			place_piece_x;	//the destination where to place the piece
-	int			palce_piece_y;
-	int			me_direction_x;
-	int			me_direction_y;
 	char		**mini_piece;
 	int			mini_piece_x;
 	int			mini_piece_y;
@@ -63,8 +58,6 @@ t_fil	*initialize_values(void)
 	tmp->piece_y = 0;
 	tmp->piece = NULL;
 	tmp->fd = FILEDESCRIPTOR;
-	tmp->me_direction_x = 0;
-	tmp->me_direction_y = 0;
 	tmp->mini_x_offset = 0;
 	tmp->mini_y_offset = 0;
 	return (tmp);
@@ -216,10 +209,12 @@ void		make_mini_piece(t_fil *fil)
 	dprintf(2,">\t\ty_offset <%i>\n", fil->mini_y_offset);
 }
 
-void		read_piece(t_fil *fil, char *line)
+int		read_piece(t_fil *fil, char *line)
 {
 	int i;
+	int count;
 
+	count = 0;
 	i = -1;
 	while (++i < fil->piece_y)
 	{
@@ -227,10 +222,12 @@ void		read_piece(t_fil *fil, char *line)
 		if ((i + 1) < fil->piece_y)
 		{
 			get_next_line(fil->fd, &line);
+			count += 1;
 			dprintf(2, ">\tpiece read %s\n", line);
 		}
 	}
 	make_mini_piece(fil);
+	return (count);
 }
 
 /*
@@ -338,7 +335,10 @@ void	print_location(t_fil *fil)
 
 int		read_parse_maps(t_fil *fil, char *line)
 {
-	while (get_next_line(fil->fd, &line))
+	int i;
+
+	i = 0;
+	while (get_next_line(fil->fd, &line) && i <= fil->piece_y)
 	{
 		dprintf(2,">\t%s\n", line);
 		if (ft_strstr(line, "$$$"))
@@ -365,9 +365,8 @@ int		read_parse_maps(t_fil *fil, char *line)
 			continue;
 		if (line[0] == '*' || line[0] == '.')
 		{
-			read_piece(fil, line);
+			i += read_piece(fil, line);
 			//if (fil->piece[fil->piece_y] != NULL)
-				break;
 		}
 
 	}
@@ -390,7 +389,7 @@ int		main(void)
 	char	*line;
 
 	fil = initialize_values();
-	//fil->fd = open("test.txt", O_RDONLY);
+	fil->fd = open("test.txt", O_RDONLY);
 	while (read_parse_maps(fil, line))
 	{
 		place_to_right(fil);
