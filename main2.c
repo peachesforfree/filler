@@ -2,6 +2,7 @@
 #include "./libft/libft.h"
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 typedef struct       s_fil
 {
@@ -106,9 +107,11 @@ void		board_size(t_fil *fil, char *line)
 int     get_piece(t_fil *fil, char *line)
 {
     if(++fil->count_y < fil->piece_y)
-dprintf(2, ">piece[%i] =%s\n", fil->count_y, line);
+	{
+		dprintf(2, ">piece[%i] =%s\n", fil->count_y, line);
         fil->piece[fil->count_y] = ft_strdup(line);
-    if (fil->count_y == (fil->piece_y - 1))
+	}
+	if (fil->count_y == (fil->piece_y - 1))
 	{
 		fil->count_y = -1;
 	    return (1);
@@ -237,32 +240,33 @@ int     check_place_validity(int board_place_x, int board_place_y, t_fil *fil)
 {
     int x;
     int y;
+	int count;
 
+	count = 0;
     y = -1;
     while(++y <= fil->mini_piece_y)
     {
         x = -1;
         while (++x <= fil->mini_piece_x)
         {
-//dprintf(2, "%c", fil->piece[y + fil->mini_y_offset][x + fil->mini_x_offset]);
-            if ((fil->piece[y + fil->mini_y_offset][x + fil->mini_x_offset] == '*') && (fil->board[board_place_y + y][board_place_x + x] == fil->me))
+	//dprintf(2, "%c", fil->piece[y + fil->mini_y_offset][x + fil->mini_x_offset]);
+            if ((fil->board[board_place_y + y][board_place_x + x] == fil->me) && (fil->piece[y + fil->y_top][x + fil->x_left] == '*'))
             {
-dprintf(2, ">\tlocation [%i][%i]\n",board_place_y, board_place_x);
-dprintf(2, ">\tfil->piece[y + fil->mini_y_offset][x + fil->mini_x_offset] == '*'\n");
-dprintf(2, ">\t fil->piece[%i + %i][%i + %i] == '*'\n", y, fil->mini_y_offset, x, fil->mini_x_offset);
-
-dprintf(2, ">\tOffset[%i][%i]\n", fil->mini_y_offset, fil->mini_x_offset);
-				fil->put_piece_x = fil->mini_x_offset + board_place_x;
-				fil->put_piece_y = fil->mini_y_offset + board_place_y;
-				dprintf(1, "%i %i\n", fil->put_piece_y, fil->put_piece_x);
-				free(fil->piece);
-				return (1);
+				dprintf(1, ">\tlocation [%i][%i]\n",board_place_y, board_place_x);
+				dprintf(1, ">\tOffset[%i][%i]\n", fil->y_top, fil->x_left);
+				fil->put_piece_x = board_place_x - fil->x_left;
+				fil->put_piece_y = board_place_y - fil->y_top;
+				dprintf(1, ">\tput place[%i][%i]\n", fil->put_piece_x, fil->put_piece_y);
+				count++;
 			}
 		}
-//	dprintf(2, "\t at [%i][%i]\n", board_place_y, board_place_x);
+//	dprintf(2, "\t at [%i][%i]\n", board_place_y, board_place_x)
     }
-
-    return (0);
+	if (count == 1)
+	{
+		return (1);
+	}
+	return (0);
 }
 
 /*
@@ -276,15 +280,13 @@ int		place_to_right(t_fil *fil)
 	int x;
 	int y;
 
-	y = -1;
-	while (++y < (fil->board_y - fil->mini_piece_y))
+	y = (fil->board_y - fil->mini_piece_y);
+	while (--y >= 0)
 	{
 		x = (fil->board_x - fil->mini_piece_x);
 		while(--x >= 0)
 		{
-usleep(10000);
-dprintf(2, ">on map [%i][%i]\n", y, x);
-			if(check_place_validity(x, y, fil) == 1)
+			if(check_place_validity(x, y, fil) == 1 && fil->board[y][x] == fil->me)
 				return (1);
 		}
 	}
@@ -305,12 +307,11 @@ int     main(void)
 	int i;
 
     init_struct(&fil);
-	//fil.fd = open("test.txt", O_RDWR);
+	fil.fd = open("test.txt", O_RDWR);
     while (get_board(&fil) == 1)
    	{
 		if(place_to_right(&fil))
-			i = 0;
-			//printf("%i %i\n", fil.put_piece_y, fil.put_piece_x);
+			dprintf(1, "%i %i\n", fil.put_piece_y, fil.put_piece_x);
 		else
 			printf("0 0");
 	}
