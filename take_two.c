@@ -21,6 +21,9 @@ typedef struct  s_fil
     int         piece_bottom;
     int         count_y;
 
+    int         x_place;
+    int         y_place;
+
 }               t_fil;
 
 void    fil_init(t_fil *fil)
@@ -38,6 +41,8 @@ void    fil_init(t_fil *fil)
     fil->piece_right = 0;
     fil->piece_top = 0;
     fil->piece_bottom = 0;
+    fil->x_place = 0;
+    fil->y_place = 0;
 }
 
 /*
@@ -296,7 +301,65 @@ int     get_board(t_fil *fil)
     return (0);
 }
 
-int main(void)
+int         check_mine(t_fil *fil, int x, int y)
+{
+    int xx;
+    int yy;
+
+    yy = -1;
+    xx = -1;
+    while (++xx < fil->piece_x)
+    {
+        while (++yY < fil->piece_y)
+            {
+/*
+*
+*       took off here last 
+*
+*
+*/           }
+        )
+    }
+
+    return (0);
+}
+
+int         check_his(t_fil *fil, int x, int y)
+{
+
+
+    return (0);
+}
+
+int        place_right(t_fil *fil)
+{
+    int x;
+    int y;
+
+    x = (-1 - fil->piece_left); //takes into account left bound  
+    y = (-1 - fil->piece_top);  //takes into account far top bound
+    while (++y < (fil->board_y - fil->piece_bottom) //takes into account the bottom bound
+    {
+        while (++x < (fil->board_x - fil->piece_right)  //takes into account the far right bound
+        {
+            if (fil->board[y][x] == fil->me)
+                if(check_mine(fil, x, y) && check_his(fil, x, y))
+                {
+                    fil->place_x = x;
+                    fil->place_y = y;
+                    return (1);                    
+                }
+        }
+    }
+    //find a place
+    //check if only one of mine occupy it
+    //check if any of his occupy it
+    //if true, return (1)
+    //else return (0)
+    return (0);
+}
+
+int         main(void)
 {
     t_fil fil;
 
@@ -304,9 +367,11 @@ int main(void)
     while (get_board(&fil))
     {
         dprintf(2, ">\tplayer[%c]\tboard[%i][%i]\tpiece[%i][%i]\n",fil.me, fil.board_y, fil.board_x, fil.piece_y, fil.piece_x);
-        //for testing printf all the shit out to FD of 2
-        //algo goes here for placement
-        dprintf(1, "0 0\n");
+        dprintf("starting on placement algorithm");
+        if (place_right(&fil))
+            dprintf(2, "%i %i\n", fil->y_place, fil->x_place);
+        else
+            dprintf(2, "0 0\n"); //end of game
     }
     
     return (0);
