@@ -208,7 +208,7 @@ void    get_top_bound(t_fil *fil)
             }
             x++;
         }
-        y--;
+        y++;
         x = 0;
     }
 }
@@ -225,7 +225,7 @@ void    get_bottom_bound(t_fil *fil)
     int x;
     int y;
 
-    y = fil->piece_y;
+    y = (fil->piece_y - 1);
     x = 0;
     while (y >= 0)
     {
@@ -273,8 +273,6 @@ int     get_board(t_fil *fil)
     tmp = 1;
     while (get_next_line(fil->fd, &line))     //while there is something to read
     {
-        dprintf(2, ">\t%s\n", line);
-      //  dprintf(2, "reading a line %i", tmp++);
        if (ft_strstr(line, "$$$"))      //indicator for which player I am
         	player_info(fil, line);
         if (ft_strstr(line, "Plateau")) //indicator for board dimentions
@@ -285,7 +283,6 @@ int     get_board(t_fil *fil)
 		{
 			if (get_piece(fil, line))           //reading of the whole piece
             {
-                dprintf(2, "getting mini stats");
                 get_mini_stats(fil);
                 return (1);                
             }
@@ -306,10 +303,11 @@ int main(void)
     fil_init(&fil);
     while (get_board(&fil))
     {
-        dprintf(2, ">\tplayer[%c]\tboard[%i][%i]\tpiece[%i][%i]\t",fil.me, fil.board_y, fil.board_x, fil.piece_y, fil.piece_x);
+        dprintf(2, ">\tplayer[%c]\tboard[%i][%i]\tpiece[%i][%i]\n",fil.me, fil.board_y, fil.board_x, fil.piece_y, fil.piece_x);
         //for testing printf all the shit out to FD of 2
         //algo goes here for placement
+        dprintf(1, "0 0\n");
     }
-    dprintf(1, "0 0\n");
+    
     return (0);
 }

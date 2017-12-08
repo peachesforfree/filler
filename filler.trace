@@ -1,6 +1,5 @@
-seed = 1103
-O: error on input
-players/a.out: Segfault at 0
-players/champely.filler won
+seed = 5888
+X: error on input
+players/hcao.filler won
 Score:
-0AGAINST0
+0AGAINST1
