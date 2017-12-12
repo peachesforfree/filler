@@ -305,30 +305,42 @@ int         check_mine(t_fil *fil, int x, int y)
 {
     int xx;
     int yy;
+    int count;
 
+    count = 0;
     yy = -1;
     xx = -1;
-    while (++xx < fil->piece_x)
+    while ((++yy < fil->piece_y) && ((yy + y) < fil->board_y))
     {
-        while (++yY < fil->piece_y)
-            {
-/*
-*
-*       took off here last 
-*
-*
-*/           }
-        )
+        while (++xx < fil->piece_x && ((xx + x) < fil->board_x))
+        {
+            if ((fil->board[y + yy][x + xx] == fil->me) && (fil->piece[yy][xx] == '*'))
+                count++;
+        }
+        xx = -1;
     }
-
-    return (0);
+    if (count != 1)
+        return (0);
+    return (1);
 }
 
 int         check_his(t_fil *fil, int x, int y)
 {
+    int xx;
+    int yy;
 
-
-    return (0);
+    xx = -1;
+    yy = -1;
+    while ((++yy < fil->piece_y) && ((yy + y) < fil->board_y))
+    {
+        while ((++xx < fil->piece_x) &&((xx + x) < fil->board_x))
+        {
+            if (fil->board[y + yy][x +xx] == fil->him)
+                return (0);
+        }
+        xx = -1;
+    }
+    return (1);
 }
 
 int        place_right(t_fil *fil)
