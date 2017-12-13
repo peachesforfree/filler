@@ -176,7 +176,7 @@ void    get_right_bound(t_fil *fil)
         {
             if (fil->piece[y][x] == '*')
             {
-                fil->piece_left = x;
+                fil->piece_right = x;
                 return ;
             }
             y++;
@@ -273,11 +273,10 @@ void    get_mini_stats(t_fil *fil)
 int     get_board(t_fil *fil)
 {
     char *line;
-    int     tmp;
 
-    tmp = 1;
     while (get_next_line(fil->fd, &line))     //while there is something to read
     {
+        dprintf(2, ">\t%s\n", line);
        if (ft_strstr(line, "$$$"))      //indicator for which player I am
         	player_info(fil, line);
         if (ft_strstr(line, "Plateau")) //indicator for board dimentions
@@ -289,6 +288,7 @@ int     get_board(t_fil *fil)
 			if (get_piece(fil, line))           //reading of the whole piece
             {
                 get_mini_stats(fil);
+                fil->count_y = 0;
                 return (1);                
             }
 		}
@@ -297,7 +297,8 @@ int     get_board(t_fil *fil)
 		    fil->board[ft_atoi(line)] = ft_strdup(ft_strchr(line, ' ') + 1);		
 		}
 		ft_bzero(line, sizeof(line));
-	}
+    }
+    fil->count_y = 0;
     return (0);
 }
 
@@ -310,12 +311,16 @@ int         check_mine(t_fil *fil, int x, int y)
     count = 0;
     yy = -1;
     xx = -1;
-    while ((++yy < fil->piece_y) && ((yy + y) < fil->board_y))
+    while (++yy < fil->piece_y)
     {
-        while (++xx < fil->piece_x && ((xx + x) < fil->board_x))
+        while (++xx < fil->piece_x)
         {
-            if ((fil->board[y + yy][x + xx] == fil->me) && (fil->piece[yy][xx] == '*'))
+            if ((fil->piece[yy][xx] == '*') && (fil->board[y + yy][x + xx] == fil->me))
+             {
+                 //dprintf(2, ">\tonboard[%i][%i]\tonpiece[%i][%i]", y, x, yy, xx);
+                 //dprintf(2, ">\tminefound@ \t%i\t%i\tcount=%i\n", (y + yy), (x + xx), (count + 1));
                 count++;
+             }
         }
         xx = -1;
     }
@@ -331,15 +336,27 @@ int         check_his(t_fil *fil, int x, int y)
 
     xx = -1;
     yy = -1;
-    while ((++yy < fil->piece_y) && ((yy + y) < fil->board_y))
+    while (++yy < fil->piece_y)
     {
-        while ((++xx < fil->piece_x) &&((xx + x) < fil->board_x))
+        while (++xx < fil->piece_x)
         {
-            if (fil->board[y + yy][x +xx] == fil->him)
+            if ((fil->board[y + yy][x +xx] == fil->him) && (fil->piece[yy][xx] == '*'))
+            {
+                //dprintf(2, "hisfound@\t%i\t%i\n", (yy + y), (xx + x));
                 return (0);
+            }
         }
         xx = -1;
     }
+    return (1);
+}
+
+int         bounds_check(t_fil *fil, int x, int y)
+{
+    if ((y + fil->piece_bottom) >= fil->board_y)
+        return (0);
+    if ((x + fil->piece_right) >= fil->board_x)
+        return (0);
     return (1);
 }
 
@@ -348,20 +365,21 @@ int        place_right(t_fil *fil)
     int x;
     int y;
 
-    x = (-1 - fil->piece_left); //takes into account left bound  
-    y = (-1 - fil->piece_top);  //takes into account far top bound
-    while (++y < (fil->board_y - fil->piece_bottom) //takes into account the bottom bound
+    x = -1;  
+    y = -1; 
+    while (++y < fil->board_y) //takes into account the bottom bound
     {
-        while (++x < (fil->board_x - fil->piece_right)  //takes into account the far right bound
+        while (++x < fil->board_x)  //takes into account the far right bound
         {
-            if (fil->board[y][x] == fil->me)
-                if(check_mine(fil, x, y) && check_his(fil, x, y))
-                {
-                    fil->place_x = x;
-                    fil->place_y = y;
-                    return (1);                    
-                }
+            dprintf(2, ">\tchecking board\t%i\t%i\n", x, y);
+            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
+            {
+                fil->x_place = x;
+                fil->y_place = y;
+                return (1);                    
+            }
         }
+        x = -1;
     }
     //find a place
     //check if only one of mine occupy it
@@ -376,14 +394,20 @@ int         main(void)
     t_fil fil;
 
     fil_init(&fil);
+    //fil.fd = open("test.txt", O_RDONLY); //for reading the test file
     while (get_board(&fil))
     {
-        dprintf(2, ">\tplayer[%c]\tboard[%i][%i]\tpiece[%i][%i]\n",fil.me, fil.board_y, fil.board_x, fil.piece_y, fil.piece_x);
-        dprintf("starting on placement algorithm");
         if (place_right(&fil))
-            dprintf(2, "%i %i\n", fil->y_place, fil->x_place);
+        {
+            dprintf(2, ">\tplayer[%c]\tboard[%i][%i]\tpiece[%i][%i]\tright=[%i]\n",fil.me, fil.board_y, fil.board_x, fil.piece_y, fil.piece_x, fil.piece_right);
+            dprintf(1, "%i %i\n", fil.y_place, fil.x_place);
+            dprintf(2, ">\tlocation\t%i %i\n", fil.y_place, fil.x_place);
+        }
         else
-            dprintf(2, "0 0\n"); //end of game
+        {
+            dprintf(2, ">\tlocation\t0\t0");
+            return (0);
+        }
     }
     
     return (0);

@@ -1,5 +1,7 @@
-seed = 8625
+seed = 9418
 X: error on input
-players/carli.filler won
+O: error on input
+players/a.out: Segfault at 309
+players/a.out won
 Score:
-208AGAINST207
+309AGAINST0
