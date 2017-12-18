@@ -24,6 +24,13 @@ typedef struct  s_fil
     int         x_place;
     int         y_place;
 
+    int		put_piece_x;
+	int		put_piece_y;
+
+    int		**heat_map;
+	int		current_x;
+	int		current_y;
+
 }               t_fil;
 
 void    fil_init(t_fil *fil)
@@ -43,6 +50,8 @@ void    fil_init(t_fil *fil)
     fil->piece_bottom = 0;
     fil->x_place = 0;
     fil->y_place = 0;
+    fil->put_piece_x = 0;
+    fil->put_piece_y = 0;
 }
 
 /*
@@ -82,6 +91,7 @@ void    board_size(t_fil *fil, char *str)
         chr++;
     fil->board_x = ft_atoi(&chr[0]);
     fil->board = (char**)malloc(sizeof(char*) * fil->board_y);
+    fil->heat_map = (int**)ft_calloc(fil->board_y, (fil->board_x * sizeof(int)));
 }
 
 /*
@@ -263,6 +273,56 @@ void    get_mini_stats(t_fil *fil)
     get_bottom_bound(fil);
 }
 
+void    print_heat_map(t_fil *fil)
+{
+    int x;
+    int y;
+
+    x = -1;
+    y = -1;
+    dprintf(2, "\n\t Printing heat map\n\n");
+    while(++y < fil->board_y)
+    {
+        while (++x < fil->board_x)
+        {
+            dprintf(2, " %i ", fil->heat_map[y][x]);       
+        }
+        dprintf(2, "\n");
+        x = -1;
+    }
+    dprintf(2, "\n");
+}
+
+//  take off from here
+//  init the map by filling with zero and placing 1 for other player.
+//  decided to build map out vertically going up and down from fil->him places
+//      only from number 1 goin out ontop of a number zero && making sure to keep within bounds.
+//  then horizontally going out left and out to right
+//         same thing here as with vertical, but horizontally 
+//  end populating map by running thru one more time placing in fil->me with number 0
+
+void    make_heat_map(t_fil *fil)
+{
+    int x;
+    int y;
+
+    y = -1;
+    x = -1;
+    while (++y < fil->board_y)
+    {
+        while (++x < fil->board_x)
+        {
+            fil->heat_map[y][x] = 0;
+            if (fil->board[y][x == fil->him])
+                fil->heat_map[y][x] = 1;
+        }
+        x = -1;
+    }
+
+    heat_map_vert(fil);
+    heat_map_horizontal(fil);
+}
+
 /*
 **int     get_board(t_fil *fil)
 **
@@ -276,7 +336,7 @@ int     get_board(t_fil *fil)
 
     while (get_next_line(fil->fd, &line))     //while there is something to read
     {
-        dprintf(2, ">\t%s\n", line);
+        //dprintf(2, ">\t%s\n", line);
        if (ft_strstr(line, "$$$"))      //indicator for which player I am
         	player_info(fil, line);
         if (ft_strstr(line, "Plateau")) //indicator for board dimentions
@@ -289,6 +349,7 @@ int     get_board(t_fil *fil)
             {
                 get_mini_stats(fil);
                 fil->count_y = 0;
+                make_heat_map(fil);
                 return (1);                
             }
 		}
@@ -299,11 +360,13 @@ int     get_board(t_fil *fil)
 		ft_bzero(line, sizeof(line));
     }
     fil->count_y = 0;
+    make_heat_map(fil);
     return (0);
 }
 
 int         check_mine(t_fil *fil, int x, int y)
 {
+    //dprintf(2, "\tcheck mine start");
     int xx;
     int yy;
     int count;
@@ -317,7 +380,7 @@ int         check_mine(t_fil *fil, int x, int y)
         {
             if ((fil->piece[yy][xx] == '*') && (fil->board[y + yy][x + xx] == fil->me))
              {
-                 //dprintf(2, ">\tonboard[%i][%i]\tonpiece[%i][%i]", y, x, yy, xx);
+                // dprintf(2, ">\tonboard[%i][%i]\tonpiece[%i][%i]", y, x, yy, xx);
                  //dprintf(2, ">\tminefound@ \t%i\t%i\tcount=%i\n", (y + yy), (x + xx), (count + 1));
                 count++;
              }
@@ -331,14 +394,15 @@ int         check_mine(t_fil *fil, int x, int y)
 
 int         check_his(t_fil *fil, int x, int y)
 {
+    dprintf(2, "\tcheck his start");
     int xx;
     int yy;
 
     xx = -1;
     yy = -1;
-    while (++yy < fil->piece_y)
+    while (++yy < fil->piece_y && (yy + y < fil->board_y))
     {
-        while (++xx < fil->piece_x)
+        while (++xx < fil->piece_x && (xx + x < fil->board_x))
         {
             if ((fil->board[y + yy][x +xx] == fil->him) && (fil->piece[yy][xx] == '*'))
             {
@@ -353,6 +417,7 @@ int         check_his(t_fil *fil, int x, int y)
 
 int         bounds_check(t_fil *fil, int x, int y)
 {
+    //dprintf(2, "\tbounds check start");
     if ((y + fil->piece_bottom) >= fil->board_y)
         return (0);
     if ((x + fil->piece_right) >= fil->board_x)
@@ -366,28 +431,27 @@ int        place_right(t_fil *fil)
     int y;
 
     x = -1;  
-    y = -1; 
+    y = -1;
+   
     while (++y < fil->board_y) //takes into account the bottom bound
     {
         while (++x < fil->board_x)  //takes into account the far right bound
         {
-            dprintf(2, ">\tchecking board\t%i\t%i\n", x, y);
+            dprintf(2, ">\tchecking board\t%i\t%i\t", x, y);
             if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
             {
                 fil->x_place = x;
                 fil->y_place = y;
                 return (1);                    
             }
+            dprintf(2, "\n");
         }
         x = -1;
     }
-    //find a place
-    //check if only one of mine occupy it
-    //check if any of his occupy it
-    //if true, return (1)
-    //else return (0)
     return (0);
 }
+
+
 
 int         main(void)
 {
@@ -397,17 +461,24 @@ int         main(void)
     //fil.fd = open("test.txt", O_RDONLY); //for reading the test file
     while (get_board(&fil))
     {
+      //  if (bolt_for_center(&fil))
+      //      return(print_coordinates(&fil));
+       // if (spiral_algorithm(&fil))
+      //      return(print_coordinates(&fil));
         if (place_right(&fil))
         {
-            dprintf(2, ">\tplayer[%c]\tboard[%i][%i]\tpiece[%i][%i]\tright=[%i]\n",fil.me, fil.board_y, fil.board_x, fil.piece_y, fil.piece_x, fil.piece_right);
             dprintf(1, "%i %i\n", fil.y_place, fil.x_place);
             dprintf(2, ">\tlocation\t%i %i\n", fil.y_place, fil.x_place);
         }
         else
         {
+            dprintf(1, "0 0\n");
             dprintf(2, ">\tlocation\t0\t0");
+                       // dprintf(2, ">\tplayer[%c]\tboard[%i][%i]\tpiece[%i][%i]\tright=[%i]\n",fil.me, fil.board_y, fil.board_x, fil.piece_y, fil.piece_x, fil.piece_right);
             return (0);
         }
+                    //dprintf(2, ">\tplayer[%c]\tboard[%i][%i]\tpiece[%i][%i]\tright=[%i]\n",fil.me, fil.board_y, fil.board_x, fil.piece_y, fil.piece_x, fil.piece_right);
+
     }
     
     return (0);

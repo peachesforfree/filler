@@ -1,7 +1,6 @@
-seed = 9418
-X: error on input
+seed = 7144
 O: error on input
-players/a.out: Segfault at 309
+players/a.out: Segfault at 1
 players/a.out won
 Score:
-309AGAINST0
+1AGAINST0

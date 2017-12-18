@@ -13,9 +13,7 @@ typedef struct       s_fil
     char    **board;
     int     board_x;
     int     board_y;
-	int		current_x;
-	int		current_y;
-    
+   
     char    **piece;
     int     count_y;
     int     piece_x;
@@ -24,10 +22,12 @@ typedef struct       s_fil
     int     x_len;
     int     y_top;
     int     y_len;   
-
     char    **mini_piece;
     int		put_piece_x;
 	int		put_piece_y;
+	int		**heat_map;
+	int		current_x;
+	int		current_y;
 }                   t_fil;
 
 void    init_struct(t_fil *fil)
