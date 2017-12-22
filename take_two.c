@@ -27,7 +27,6 @@ typedef struct  s_fil
     int		put_piece_x;
 	int		put_piece_y;
 
-    int		**heat_map;
 	int		current_x;
 	int		current_y;
 
@@ -91,7 +90,6 @@ void    board_size(t_fil *fil, char *str)
         chr++;
     fil->board_x = ft_atoi(&chr[0]);
     fil->board = (char**)malloc(sizeof(char*) * fil->board_y);
-    fil->heat_map = (int**)ft_calloc(fil->board_y, (fil->board_x * sizeof(int)));
 }
 
 /*
@@ -273,56 +271,6 @@ void    get_mini_stats(t_fil *fil)
     get_bottom_bound(fil);
 }
 
-void    print_heat_map(t_fil *fil)
-{
-    int x;
-    int y;
-
-    x = -1;
-    y = -1;
-    dprintf(2, "\n\t Printing heat map\n\n");
-    while(++y < fil->board_y)
-    {
-        while (++x < fil->board_x)
-        {
-            dprintf(2, " %i ", fil->heat_map[y][x]);       
-        }
-        dprintf(2, "\n");
-        x = -1;
-    }
-    dprintf(2, "\n");
-}
-
-//  take off from here
-//  init the map by filling with zero and placing 1 for other player.
-//  decided to build map out vertically going up and down from fil->him places
-//      only from number 1 goin out ontop of a number zero && making sure to keep within bounds.
-//  then horizontally going out left and out to right
-//         same thing here as with vertical, but horizontally 
-//  end populating map by running thru one more time placing in fil->me with number 0
-
-void    make_heat_map(t_fil *fil)
-{
-    int x;
-    int y;
-
-    y = -1;
-    x = -1;
-    while (++y < fil->board_y)
-    {
-        while (++x < fil->board_x)
-        {
-            fil->heat_map[y][x] = 0;
-            if (fil->board[y][x == fil->him])
-                fil->heat_map[y][x] = 1;
-        }
-        x = -1;
-    }
-
-    heat_map_vert(fil);
-    heat_map_horizontal(fil);
-}
-
 /*
 **int     get_board(t_fil *fil)
 **
@@ -349,7 +297,6 @@ int     get_board(t_fil *fil)
             {
                 get_mini_stats(fil);
                 fil->count_y = 0;
-                make_heat_map(fil);
                 return (1);                
             }
 		}
@@ -360,7 +307,6 @@ int     get_board(t_fil *fil)
 		ft_bzero(line, sizeof(line));
     }
     fil->count_y = 0;
-    make_heat_map(fil);
     return (0);
 }
 
@@ -425,33 +371,206 @@ int         bounds_check(t_fil *fil, int x, int y)
     return (1);
 }
 
-int        place_right(t_fil *fil)
+int        up_and_left(t_fil *fil)        //scans from top left
 {
     int x;
     int y;
 
-    x = -1;  
+    x = -1;
     y = -1;
    
     while (++y < fil->board_y) //takes into account the bottom bound
     {
         while (++x < fil->board_x)  //takes into account the far right bound
         {
-            dprintf(2, ">\tchecking board\t%i\t%i\t", x, y);
             if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
             {
                 fil->x_place = x;
                 fil->y_place = y;
                 return (1);                    
             }
-            dprintf(2, "\n");
         }
         x = -1;
     }
     return (0);
 }
 
+int        up_and_right(t_fil *fil)       //scans from top right
+{
+    int x;
+    int y;
 
+    x = fil->board_x;
+    y = -1;
+   
+    while (++y < fil->board_y) //takes into account the bottom bound
+    {
+        while (--x > -1)  //takes into account the far right bound
+        {
+            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
+            {
+                fil->x_place = x;
+                fil->y_place = y;
+                return (1);                    
+            }
+        }
+        x = fil->board_x;
+    }
+    return (0);
+}
+
+int        from_bottom_left(t_fil *fil) //scans from bottom left
+{
+    int x;
+    int y;
+
+    x = -1;
+    y = fil->board_y;
+   
+    while (--y > -1) //takes into account the bottom bound
+    {
+        while (++x > fil->board_x)  //takes into account the far right bound
+        {
+            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
+            {
+                fil->x_place = x;
+                fil->y_place = y;
+                return (1);                    
+            }
+        }
+        x = -1;
+    }
+    return (0);
+}
+
+int        from_bottom_right(t_fil *fil)    //scans from bottom right 
+{
+    int x;
+    int y;
+
+    x = fil->board_x;
+    y = fil->board_y;
+   
+    while (--y > -1) //takes into account the bottom bound
+    {
+        while (--x > -1)  //takes into account the far right bound
+        {
+            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
+            {
+                fil->x_place = x;
+                fil->y_place = y;
+                return (1);                    
+            }
+        }
+        x = fil->board_x;
+    }
+    return (0);
+}
+
+int         up_down(t_fil *fil)
+{
+    int x;
+    int y;
+    int place;
+
+    y = -1;
+    x = -1;
+    while (++y < fil->board_y)
+    {
+        while (++x < fil->board_x)
+        {
+            if (fil->board[y][x] == fil->me)
+                count = y;
+        }
+        x = -1;
+    }
+    if (count < (fil->board_y / 2))
+        return (1);
+    return (-1);
+}
+
+int         left_right(t_fil *fil)
+{
+    int x;
+    int y;
+    int place;
+
+    x = -1;
+    y = -1;
+    place = -1;
+    while (++y < fil->board_y)
+    {
+        while (++x < fil->board_x)
+        {
+            if ((fil->board[y][x] == fil->me) && (place < x))
+                place = x;
+        }
+        x = -1;
+    }
+    if (place < (fil->board_x / 2))
+        return (1);
+    return (-1);
+}
+
+int        find_place(t_fl *fil, int x_vec, int y_vec)
+{
+    //x_vec == -1 right if 1 left
+    //y_vec == -1 down if 1 up
+    if (x_vec < 0 && y_vec < 0)             //player resides in right bottom
+        return (from_bottom_left(fil));
+    if (x_vec < 0 && y_vec > 0)
+        return (from_bottom_right(fil));    //player resides in right top 
+    if (x_vec > 0 && y_vec < 0)
+        return (from_top_right(fil));       //player resides in left bottom
+    if (x_vec > 0 && y_vec > 0)
+        return (from_top_left(fil));        //player resides in left top
+}
+
+int         bolt_for_center(t_fil *fil)
+{
+    int x_vector;
+    int y_vector;
+
+    y_vector = up_down(fil);       //will return +1 or -1 depending on going up or down
+    x_vector = left_right(fil);   //will return +1 or -1 depending on going left or right
+    if (fil->board[fil->board_y / 2][fil->board_x / 2] != fil->me ||
+    fil->board[(fil->board_y / 2) + 1][fil->board_x / 2] != fil->me ||
+    fil->board[(fil->board_y / 2) - 1][fil->board_x / 2] != fil->me ||
+    fil->board[fil->board_y / 2][(fil->board_x / 2) + 1] != fil->me ||
+    fil->board[fil->board_y / 2][(fil->board_x / 2) - 1] != fil->me)    // maybe make this into a looped function where it checks in radius from selected point
+        return ((find_place(fil, x_vector, y_vector) > 0) ? 1: 0);
+    return (0);
+}
+
+int     find_spot_near(t_fil *fil, int x, int y)        //here I need do devise a way to scan in a radius around the point given in arguments x,y
+{
+    int rad;
+    int count;
+
+    rad = -1;
+    while (++rad;)
+    {
+        count = (rad / 2);
+        while(y + count)
+        {
+            while(x + )
+            {
+
+            }
+        }
+    }
+}
+
+int        spread_from_center(t_fil fil)
+{
+    if (find_spot_near(fil, x, y))
+
+}
+
+int         fill_out_from_center(fil)
+{
+
+}
 
 int         main(void)
 {
@@ -461,25 +580,14 @@ int         main(void)
     //fil.fd = open("test.txt", O_RDONLY); //for reading the test file
     while (get_board(&fil))
     {
-      //  if (bolt_for_center(&fil))
-      //      return(print_coordinates(&fil));
-       // if (spiral_algorithm(&fil))
-      //      return(print_coordinates(&fil));
-        if (place_right(&fil))
-        {
-            dprintf(1, "%i %i\n", fil.y_place, fil.x_place);
-            dprintf(2, ">\tlocation\t%i %i\n", fil.y_place, fil.x_place);
-        }
+        if (bolt_for_center(fil))
+            dprintf(2, "%i %i\n", fil.y_place, fil.x_place);
+        else if (spread_from_center(fil))
+            dprintf(2, "%i %i\n", fil.y_place, fil.x_place);
+        else if (fill_out_from_center(fil))
+            dprintf(2, "%i %i\n", fil.y_place, fil.x_place);
         else
-        {
-            dprintf(1, "0 0\n");
-            dprintf(2, ">\tlocation\t0\t0");
-                       // dprintf(2, ">\tplayer[%c]\tboard[%i][%i]\tpiece[%i][%i]\tright=[%i]\n",fil.me, fil.board_y, fil.board_x, fil.piece_y, fil.piece_x, fil.piece_right);
-            return (0);
-        }
-                    //dprintf(2, ">\tplayer[%c]\tboard[%i][%i]\tpiece[%i][%i]\tright=[%i]\n",fil.me, fil.board_y, fil.board_x, fil.piece_y, fil.piece_x, fil.piece_right);
-
+            dprintf(2, "0 0\n");
     }
-    
     return (0);
 }
