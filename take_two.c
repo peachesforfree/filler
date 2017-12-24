@@ -27,6 +27,7 @@ typedef struct  s_fil
     int		put_piece_x;
 	int		put_piece_y;
 
+    int     **heat_map;
 	int		current_x;
 	int		current_y;
 
@@ -51,6 +52,14 @@ void    fil_init(t_fil *fil)
     fil->y_place = 0;
     fil->put_piece_x = 0;
     fil->put_piece_y = 0;
+}
+
+void        print_coordinates(t_fil *fil)
+{
+    ft_putnbr(fil->put_piece_x);
+    ft_putchar(' ');
+    ft_putnbr(fil->put_piece_y);
+    ft_putchar('\n');
 }
 
 /*
@@ -310,266 +319,237 @@ int     get_board(t_fil *fil)
     return (0);
 }
 
-int         check_mine(t_fil *fil, int x, int y)
-{
-    //dprintf(2, "\tcheck mine start");
-    int xx;
-    int yy;
-    int count;
+/*
+**void    printf_heat_map(int **heat, int x_bound, int y_bound)
+**
+**this is only for debugging to show how the heat map is populating
+*/
 
-    count = 0;
-    yy = -1;
-    xx = -1;
-    while (++yy < fil->piece_y)
+void    printf_heat_map(int **heat, int x_bound, int y_bound)
+{
+    int x;
+    int y;
+    y = -1;
+    while(++y < y_bound)
     {
-        while (++xx < fil->piece_x)
+        x = -1;
+        while (++x < x_bound)
         {
-            if ((fil->piece[yy][xx] == '*') && (fil->board[y + yy][x + xx] == fil->me))
-             {
-                // dprintf(2, ">\tonboard[%i][%i]\tonpiece[%i][%i]", y, x, yy, xx);
-                 //dprintf(2, ">\tminefound@ \t%i\t%i\tcount=%i\n", (y + yy), (x + xx), (count + 1));
-                count++;
-             }
+            printf(" %i ", heat[y][x]);
         }
-        xx = -1;
+        printf("\n");
     }
-    if (count != 1)
-        return (0);
-    return (1);
+    printf("\n");
 }
 
-int         check_his(t_fil *fil, int x, int y)
-{
-    dprintf(2, "\tcheck his start");
-    int xx;
-    int yy;
+/*
+**int     sweep_check(int **heat_map, int number)
+**
+**this checks the heat_map for the special number given, if not found, returns one
+**if number is not found, returns zero
+*/
 
-    xx = -1;
-    yy = -1;
-    while (++yy < fil->piece_y && (yy + y < fil->board_y))
+int     sweep_check(int **heat_map, int number, int x_bound, int y_bound)
+{
+    int x;
+    int y;
+
+    y = -1;
+    while (++y < y_bound)
     {
-        while (++xx < fil->piece_x && (xx + x < fil->board_x))
+        x = -1;
+        while (++x < x_bound)
         {
-            if ((fil->board[y + yy][x +xx] == fil->him) && (fil->piece[yy][xx] == '*'))
+            if (heat_map[y][x] == number)
+                return (1);
+        }
+    }
+    return (0);
+}
+
+/*
+**void    fill_heat_map(char **board, int  **heat_map, int x_board, int y_board)
+**
+**runs thru map while laying down one number at a time
+*/
+
+void    fill_heat_map(char **board, int  **heat_map, int x_board, int y_board)
+{
+    int y;
+    int x;
+    int number;
+
+    number = 1;
+    while (++number && sweep_check(heat_map, 0, x_board, y_board))
+    {
+        y = -1;
+        while (++y < y_board)
+        {
+            x = -1;
+            while (++x < x_board)
             {
-                //dprintf(2, "hisfound@\t%i\t%i\n", (yy + y), (xx + x));
+                    if ((x - 1) > 0 && heat_map[y][x - 1] == (number - 1) && heat_map[y][x] == 0) //checks left
+                        heat_map[y][x] = number;
+                    if ((x + 1) < (x_board - 1) && heat_map[y][x + 1] == (number - 1) && heat_map[y][x] == 0) //checks right
+                        heat_map[y][x] = number;
+                    if ((y - 1) > 0 && heat_map[y - 1][x] == (number - 1) && heat_map[y][x] == 0) //checks below
+                        heat_map[y][x] = number;
+                    if ((y + 1) < (y_board - 1) && heat_map[y + 1][x] == (number - 1) && heat_map[y][x] == 0) //checks above
+                        heat_map[y][x] = number;
+            }
+        }
+    }
+} 
+
+/*
+**int     **heat_map(char **board, int x_board, int y_board, char him)
+**
+**this inits the 2d int array and places in the values for the opponent.
+*/
+
+int     **heat_map_init(char **board, int x_board, int y_board, char him)
+{
+    int **heat_map;
+    int  x;
+    int y;
+
+    heat_map = (int**)ft_calloc(y_board, (x_board * sizeof(int)));
+    y = -1;
+    while (++y < y_board)
+    {
+        x = -1;
+        while (++x < x_board)
+        {
+            if (board[y][x] == him)
+                heat_map[y][x] = 1;
+        }
+    }
+    fill_heat_map(board, heat_map, x_board, y_board);
+    printf_heat_map((int**)heat_map, x_board, y_board); //for debugging    
+    return (heat_map);
+}
+
+/*
+**void        buffer_zone_filled(t_fil *fil)
+**
+**given the current map, if the DMZ zone is filled, the function returns 1
+**if the DMZ zone is not filled in, function reurns 0
+**DMZ zone is determined by 10% of the board width or fil->board_x value
+*/
+
+void        buffer_zone_check(t_fil *fil)
+{
+    int number;
+    int x;
+    int y;
+
+    y = -1;
+    number = ((fil->board_x * 10) / 100);
+    while (++y < fil->board_y)
+    {
+        x = -1;
+        while (++x < fil->board_x)
+        {
+            if (fil->heat_map[y][x] == number && fil->board[y][x] == fil->me)
                 return (0);
-            }
         }
-        xx = -1;
     }
     return (1);
 }
 
-int         bounds_check(t_fil *fil, int x, int y)
+/*
+**void        not_near_buffer(t_fil *fil)
+**
+**checks heat map for DMZ zone and IF fil->me
+**if on the same place on the board. if true, return 1
+*/
+
+void        not_near_buffer(t_fil *fil)
 {
-    //dprintf(2, "\tbounds check start");
-    if ((y + fil->piece_bottom) >= fil->board_y)
-        return (0);
-    if ((x + fil->piece_right) >= fil->board_x)
+    int number;
+    int x;
+    int y;
+    bool place;
+
+    y = -1;
+    place = false;
+    number = ((fil->board_x * 10) / 100);
+    while (++y < fil->board_y)
+    {
+        x = -1;
+        while (++x < fil->board_x)
+        {
+            if (fil->heat_map[y][x] == number && fil->board[y][x] == fil->me)
+                place = true;
+        }
+    }
+    if (place == true)
         return (0);
     return (1);
 }
 
-int        up_and_left(t_fil *fil)        //scans from top left
-{
-    int x;
-    int y;
+/*
+**t_list        *add_to_list(int x, int y, t_list *head, int heat_number)
+**
+**given x,y coord, head node, and heat_number
+**t_list is made with the string of "x y\n" and heat number in content size
+*/
 
-    x = -1;
-    y = -1;
-   
-    while (++y < fil->board_y) //takes into account the bottom bound
-    {
-        while (++x < fil->board_x)  //takes into account the far right bound
-        {
-            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
-            {
-                fil->x_place = x;
-                fil->y_place = y;
-                return (1);                    
-            }
-        }
-        x = -1;
-    }
-    return (0);
+t_list        *add_to_list(int x, int y, t_list *head, int heat_number)
+{
+    t_list *temp;
+
+    temp = ft_lstnew(printf("%i %i\n", y, x), heat_number);
+    temp->next = head;
+    return (temp);
 }
 
-int        up_and_right(t_fil *fil)       //scans from top right
-{
-    int x;
-    int y;
+//
+//      tke off from here
+//      trying to build a functiom that runns thru the nodes and chooses the one with the 
+//      largest content size and take those coordinates and places them into
+//      fil->put_piece_x and fil->put_piece_y
 
-    x = fil->board_x;
-    y = -1;
-   
-    while (++y < fil->board_y) //takes into account the bottom bound
+void        asses_places(t_fil *fil, t_list *head)
+{
+    t_list *current;
+    t_list *best_value;
+
+    while (current->next != NULL)
     {
-        while (--x > -1)  //takes into account the far right bound
-        {
-            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
-            {
-                fil->x_place = x;
-                fil->y_place = y;
-                return (1);                    
-            }
-        }
-        x = fil->board_x;
+
     }
-    return (0);
 }
 
-int        from_bottom_left(t_fil *fil) //scans from bottom left
+void        work_towards_buffer_zone(t_fil * fil)
 {
+    t_list *places;
     int x;
     int y;
-
-    x = -1;
-    y = fil->board_y;
-   
-    while (--y > -1) //takes into account the bottom bound
-    {
-        while (++x > fil->board_x)  //takes into account the far right bound
-        {
-            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
-            {
-                fil->x_place = x;
-                fil->y_place = y;
-                return (1);                    
-            }
-        }
-        x = -1;
-    }
-    return (0);
-}
-
-int        from_bottom_right(t_fil *fil)    //scans from bottom right 
-{
-    int x;
-    int y;
-
-    x = fil->board_x;
-    y = fil->board_y;
-   
-    while (--y > -1) //takes into account the bottom bound
-    {
-        while (--x > -1)  //takes into account the far right bound
-        {
-            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
-            {
-                fil->x_place = x;
-                fil->y_place = y;
-                return (1);                    
-            }
-        }
-        x = fil->board_x;
-    }
-    return (0);
-}
-
-int         up_down(t_fil *fil)
-{
-    int x;
-    int y;
-    int place;
 
     y = -1;
-    x = -1;
     while (++y < fil->board_y)
     {
+        x = -1;
         while (++x < fil->board_x)
         {
-            if (fil->board[y][x] == fil->me)
-                count = y;
-        }
-        x = -1;
-    }
-    if (count < (fil->board_y / 2))
-        return (1);
-    return (-1);
-}
-
-int         left_right(t_fil *fil)
-{
-    int x;
-    int y;
-    int place;
-
-    x = -1;
-    y = -1;
-    place = -1;
-    while (++y < fil->board_y)
-    {
-        while (++x < fil->board_x)
-        {
-            if ((fil->board[y][x] == fil->me) && (place < x))
-                place = x;
-        }
-        x = -1;
-    }
-    if (place < (fil->board_x / 2))
-        return (1);
-    return (-1);
-}
-
-int        find_place(t_fl *fil, int x_vec, int y_vec)
-{
-    //x_vec == -1 right if 1 left
-    //y_vec == -1 down if 1 up
-    if (x_vec < 0 && y_vec < 0)             //player resides in right bottom
-        return (from_bottom_left(fil));
-    if (x_vec < 0 && y_vec > 0)
-        return (from_bottom_right(fil));    //player resides in right top 
-    if (x_vec > 0 && y_vec < 0)
-        return (from_top_right(fil));       //player resides in left bottom
-    if (x_vec > 0 && y_vec > 0)
-        return (from_top_left(fil));        //player resides in left top
-}
-
-int         bolt_for_center(t_fil *fil)
-{
-    int x_vector;
-    int y_vector;
-
-    y_vector = up_down(fil);       //will return +1 or -1 depending on going up or down
-    x_vector = left_right(fil);   //will return +1 or -1 depending on going left or right
-    if (fil->board[fil->board_y / 2][fil->board_x / 2] != fil->me ||
-    fil->board[(fil->board_y / 2) + 1][fil->board_x / 2] != fil->me ||
-    fil->board[(fil->board_y / 2) - 1][fil->board_x / 2] != fil->me ||
-    fil->board[fil->board_y / 2][(fil->board_x / 2) + 1] != fil->me ||
-    fil->board[fil->board_y / 2][(fil->board_x / 2) - 1] != fil->me)    // maybe make this into a looped function where it checks in radius from selected point
-        return ((find_place(fil, x_vector, y_vector) > 0) ? 1: 0);
-    return (0);
-}
-
-int     find_spot_near(t_fil *fil, int x, int y)        //here I need do devise a way to scan in a radius around the point given in arguments x,y
-{
-    int rad;
-    int count;
-
-    rad = -1;
-    while (++rad;)
-    {
-        count = (rad / 2);
-        while(y + count)
-        {
-            while(x + )
+            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
             {
-
+                places = add_to_lst(x, y, palces, fil->heat_map[y][x]);
             }
         }
     }
+    asses_placement(fil, palces);
 }
 
-int        spread_from_center(t_fil fil)
+void        placement_start(t_fil &fil)
 {
-    if (find_spot_near(fil, x, y))
-
-}
-
-int         fill_out_from_center(fil)
-{
-
+    if (buffer_zone_check(&fil))
+        fil_rest_of_map(&fil);
+    else if (!buffer_zone_check(&fil))
+        wall_off_buffer_zone(&fil);
+    else if (not_near_buffer(&fil))
+        work_towards_buffer_zone(&fil);
 }
 
 int         main(void)
@@ -577,17 +557,12 @@ int         main(void)
     t_fil fil;
 
     fil_init(&fil);
-    //fil.fd = open("test.txt", O_RDONLY); //for reading the test file
+    fil.fd = open("test.txt", O_RDONLY); //for reading the test file
     while (get_board(&fil))
     {
-        if (bolt_for_center(fil))
-            dprintf(2, "%i %i\n", fil.y_place, fil.x_place);
-        else if (spread_from_center(fil))
-            dprintf(2, "%i %i\n", fil.y_place, fil.x_place);
-        else if (fill_out_from_center(fil))
-            dprintf(2, "%i %i\n", fil.y_place, fil.x_place);
-        else
-            dprintf(2, "0 0\n");
+        fil.heat_map = heat_map_init(fil.board, fil.board_x, fil.board_y, fil.him);
+        placement_start(&fil);
+        print_coordinates(&fil);
     }
     return (0);
 }
