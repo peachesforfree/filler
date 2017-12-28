@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include "./libft/libft.h"
+#include <stdbool.h>
 
 typedef struct  s_fil
 {
@@ -319,6 +320,67 @@ int     get_board(t_fil *fil)
     return (0);
 }
 
+int         check_mine(t_fil *fil, int x, int y)
+{
+    //dprintf(2, "\tcheck mine start");
+    int xx;
+    int yy;
+    int count;
+
+    count = 0;
+    yy = -1;
+    xx = -1;
+    while (++yy < fil->piece_y)
+    {
+        while (++xx < fil->piece_x)
+        {
+            if ((fil->piece[yy][xx] == '*') && (fil->board[y + yy][x + xx] == fil->me))
+             {
+                // dprintf(2, ">\tonboard[%i][%i]\tonpiece[%i][%i]", y, x, yy, xx);
+                 //dprintf(2, ">\tminefound@ \t%i\t%i\tcount=%i\n", (y + yy), (x + xx), (count + 1));
+                count++;
+             }
+        }
+        xx = -1;
+    }
+    if (count != 1)
+        return (0);
+    return (1);
+}
+
+int         check_his(t_fil *fil, int x, int y)
+{
+//    dprintf(2, "\tcheck his start");
+    int xx;
+    int yy;
+
+    xx = -1;
+    yy = -1;
+    while (++yy < fil->piece_y && (yy + y < fil->board_y))
+    {
+        while (++xx < fil->piece_x && (xx + x < fil->board_x))
+        {
+            if ((fil->board[y + yy][x +xx] == fil->him) && (fil->piece[yy][xx] == '*'))
+            {
+                //dprintf(2, "hisfound@\t%i\t%i\n", (yy + y), (xx + x));
+                return (0);
+            }
+        }
+        xx = -1;
+    }
+    return (1);
+}
+
+int         bounds_check(t_fil *fil, int x, int y)
+{
+    //dprintf(2, "\tbounds check start");
+    if ((y + fil->piece_bottom) >= fil->board_y)
+        return (0);
+    if ((x + fil->piece_right) >= fil->board_x)
+        return (0);
+    return (1);
+}
+
 /*
 **void    printf_heat_map(int **heat, int x_bound, int y_bound)
 **
@@ -425,7 +487,7 @@ int     **heat_map_init(char **board, int x_board, int y_board, char him)
         }
     }
     fill_heat_map(board, heat_map, x_board, y_board);
-    printf_heat_map((int**)heat_map, x_board, y_board); //for debugging    
+//    printf_heat_map((int**)heat_map, x_board, y_board); //for debugging    
     return (heat_map);
 }
 
@@ -437,7 +499,7 @@ int     **heat_map_init(char **board, int x_board, int y_board, char him)
 **DMZ zone is determined by 10% of the board width or fil->board_x value
 */
 
-void        buffer_zone_check(t_fil *fil)
+int        buffer_zone_check(t_fil *fil)
 {
     int number;
     int x;
@@ -464,7 +526,7 @@ void        buffer_zone_check(t_fil *fil)
 **if on the same place on the board. if true, return 1
 */
 
-void        not_near_buffer(t_fil *fil)
+int        not_near_buffer(t_fil *fil)
 {
     int number;
     int x;
@@ -489,6 +551,66 @@ void        not_near_buffer(t_fil *fil)
 }
 
 /*
+**void        asses_places(t_fil *fil, t_list *current)
+**
+**this runs through the linked list looking for the highes content_size value.
+**prints values and deletes linked list
+*/
+
+void        asses_places(t_fil *fil, t_list *current)
+{
+    t_list  *best_node;
+    int     best_value;
+    int     i;
+
+    i = 0;
+    best_value = 0;
+    while (current->next != NULL)
+    {
+        if (current->content_size > best_value)
+        {
+            best_value = current->content_size;
+            best_node = current;
+        }
+        current = current->next;
+    }
+    fil->put_piece_y = ft_atoi((char*)(best_node->content + i));
+    while(ft_isdigit((int)(best_node->content + i)))
+        i++;
+    while (ft_isspace((char*)(best_node->content + i)))
+        i++;
+    fil->put_piece_x = ft_atoi((char*)(best_node->content + i));
+}
+
+/*
+**int         highest_heat_value(t_fil *fil, int x_start, int y_start)
+**
+**function below is to asses the highest values on the heat map the piece will cover
+**and returns that value
+*/
+
+int         highest_piece_value(t_fil *fil, int x_start, int y_start)
+{
+    int value;
+    int x;
+    int y;
+
+    y = -1;
+    value = 0;
+    while (++y < fil->piece_y )
+    {
+        x = -1;
+        while (++x < fil->piece_x)
+        {
+            if (fil->heat_map[y + y_start][x + x_start] > value && fil->piece[y][x] == '*')
+                value = fil->heat_map[y + y_start][x + x_start];
+            x++;
+        }
+    }
+    return (value);
+}
+
+/*
 **t_list        *add_to_list(int x, int y, t_list *head, int heat_number)
 **
 **given x,y coord, head node, and heat_number
@@ -498,32 +620,19 @@ void        not_near_buffer(t_fil *fil)
 t_list        *add_to_list(int x, int y, t_list *head, int heat_number)
 {
     t_list *temp;
+    char *str;
 
-    temp = ft_lstnew(printf("%i %i\n", y, x), heat_number);
+    str = ft_strjoin(ft_itoa(y), " ");
+    str = ft_strjoin(str, ft_itoa(y));
+    temp = ft_lstnew(str, heat_number);
     temp->next = head;
     return (temp);
 }
 
-//
-//      tke off from here
-//      trying to build a functiom that runns thru the nodes and chooses the one with the 
-//      largest content size and take those coordinates and places them into
-//      fil->put_piece_x and fil->put_piece_y
-
-void        asses_places(t_fil *fil, t_list *head)
-{
-    t_list *current;
-    t_list *best_value;
-
-    while (current->next != NULL)
-    {
-
-    }
-}
 
 void        work_towards_buffer_zone(t_fil * fil)
 {
-    t_list *places;
+    t_list *head_node;
     int x;
     int y;
 
@@ -535,21 +644,22 @@ void        work_towards_buffer_zone(t_fil * fil)
         {
             if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
             {
-                places = add_to_lst(x, y, palces, fil->heat_map[y][x]);
+                head_node = add_to_list(x, y, head_node, highest_piece_value(fil, x, y));
             }
         }
     }
-    asses_placement(fil, palces);
+    asses_places(fil, head_node);
 }
 
-void        placement_start(t_fil &fil)
+void        placement_start(t_fil *fil)
 {
-    if (buffer_zone_check(&fil))
-        fil_rest_of_map(&fil);
-    else if (!buffer_zone_check(&fil))
-        wall_off_buffer_zone(&fil);
-    else if (not_near_buffer(&fil))
-        work_towards_buffer_zone(&fil);
+  /*  if (buffer_zone_check(fil))
+        fil_rest_of_map(fil);
+    if (!buffer_zone_check(fil))
+            wall_off_buffer_zone(fil);
+    */
+    if (not_near_buffer(fil))
+        work_towards_buffer_zone(fil);
 }
 
 int         main(void)
@@ -562,7 +672,7 @@ int         main(void)
     {
         fil.heat_map = heat_map_init(fil.board, fil.board_x, fil.board_y, fil.him);
         placement_start(&fil);
-        print_coordinates(&fil);
+        //print coordinates function here ?
     }
     return (0);
 }
