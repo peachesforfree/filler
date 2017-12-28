@@ -3,6 +3,8 @@
 #include "./libft/libft.h"
 #include <stdbool.h>
 
+# define BUFFER_ZONE 15
+
 typedef struct  s_fil
 {
     char        me;
@@ -34,6 +36,15 @@ typedef struct  s_fil
 
 }               t_fil;
 
+typedef struct  s_values
+{
+    int         x;
+    int         y;
+    int         high_value;
+    void    *next;
+
+}               t_values;
+
 void    fil_init(t_fil *fil)
 {
     fil->board_x = 0;
@@ -57,9 +68,9 @@ void    fil_init(t_fil *fil)
 
 void        print_coordinates(t_fil *fil)
 {
-    ft_putnbr(fil->put_piece_x);
-    ft_putchar(' ');
     ft_putnbr(fil->put_piece_y);
+    ft_putchar(' ');
+    ft_putnbr(fil->put_piece_x);
     ft_putchar('\n');
 }
 
@@ -506,7 +517,7 @@ int        buffer_zone_check(t_fil *fil)
     int y;
 
     y = -1;
-    number = ((fil->board_x * 10) / 100);
+    number = ((fil->board_x * BUFFER_ZONE) / 100);
     while (++y < fil->board_y)
     {
         x = -1;
@@ -535,7 +546,7 @@ int        not_near_buffer(t_fil *fil)
 
     y = -1;
     place = false;
-    number = ((fil->board_x * 10) / 100);
+    number = ((fil->board_x * BUFFER_ZONE) / 100);
     while (++y < fil->board_y)
     {
         x = -1;
@@ -557,29 +568,25 @@ int        not_near_buffer(t_fil *fil)
 **prints values and deletes linked list
 */
 
-void        asses_places(t_fil *fil, t_list *current)
+void        asses_places(t_fil *fil, t_values *current)
 {
-    t_list  *best_node;
+    t_values  *best_node;
     int     best_value;
     int     i;
 
     i = 0;
-    best_value = 0;
-    while (current->next != NULL)
+    best_value = 1000000000;
+    while (current != NULL)
     {
-        if (current->content_size > best_value)
+        if (current->high_value < best_value)
         {
-            best_value = current->content_size;
+            best_value = current->high_value;
             best_node = current;
         }
         current = current->next;
     }
-    fil->put_piece_y = ft_atoi((char*)(best_node->content + i));
-    while(ft_isdigit((int)(best_node->content + i)))
-        i++;
-    while (ft_isspace((char*)(best_node->content + i)))
-        i++;
-    fil->put_piece_x = ft_atoi((char*)(best_node->content + i));
+    fil->put_piece_y = best_node->y;
+    fil->put_piece_x = best_node->x;
 }
 
 /*
@@ -596,15 +603,14 @@ int         highest_piece_value(t_fil *fil, int x_start, int y_start)
     int y;
 
     y = -1;
-    value = 0;
+    value = 1000000000;
     while (++y < fil->piece_y )
     {
         x = -1;
         while (++x < fil->piece_x)
         {
-            if (fil->heat_map[y + y_start][x + x_start] > value && fil->piece[y][x] == '*')
+            if ((fil->heat_map[y + y_start][x + x_start] < value) && (fil->piece[y][x] == '*'))
                 value = fil->heat_map[y + y_start][x + x_start];
-            x++;
         }
     }
     return (value);
@@ -617,14 +623,16 @@ int         highest_piece_value(t_fil *fil, int x_start, int y_start)
 **t_list is made with the string of "x y\n" and heat number in content size
 */
 
-t_list        *add_to_list(int x, int y, t_list *head, int heat_number)
+t_values        *add_to_list(int x, int y, t_values *head, int heat_number)
 {
-    t_list *temp;
-    char *str;
+    t_values *temp;
 
-    str = ft_strjoin(ft_itoa(y), " ");
-    str = ft_strjoin(str, ft_itoa(y));
-    temp = ft_lstnew(str, heat_number);
+    temp = (t_values*)malloc(sizeof(t_values));
+    //temp->x = (int*)malloc(sizeof(int));
+    //temp->y = (int*)malloc(sizeof(int));
+    temp->x = x;
+    temp->y = y;
+    temp->high_value = heat_number;
     temp->next = head;
     return (temp);
 }
@@ -632,7 +640,26 @@ t_list        *add_to_list(int x, int y, t_list *head, int heat_number)
 
 void        work_towards_buffer_zone(t_fil * fil)
 {
-    t_list *head_node;
+    t_values *head_node;
+    int x;
+    int y;
+
+    head_node = NULL;
+    y = -1;
+    while (++y < fil->board_y)
+    {
+        x = -1;
+        while (++x < fil->board_x)
+        {
+            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
+                head_node = add_to_list(x, y, head_node, highest_piece_value(fil, x, y));
+        }
+    }
+    asses_places(fil, head_node);
+}
+
+int         buffer_zone_check(t_fil *fil)
+{
     int x;
     int y;
 
@@ -642,22 +669,80 @@ void        work_towards_buffer_zone(t_fil * fil)
         x = -1;
         while (++x < fil->board_x)
         {
-            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
-            {
-                head_node = add_to_list(x, y, head_node, highest_piece_value(fil, x, y));
-            }
+            if (fil->heat_map[y][x] == (BUFFER_ZONE / 100) && fil->board[y][x] != fil->me)
+                return (0);
         }
     }
-    asses_places(fil, head_node);
+    return (1);
+}
+
+int         buffer_zone_count(t_fil *fil, int x_start, int y_start)
+{
+    int value;
+    int x;
+    int y;
+
+    y = -1;
+    value = 0;
+    while (++y < fil->piece_y )
+    {
+        x = -1;
+        while (++x < fil->piece_x)
+        {
+            if ((fil->heat_map[y + y_start][x + x_start] == (BUFFER_ZONE / 100)) && (fil->piece[y][x] == '*')) //this part checks for bufferzone number && if piece '*'
+                value++;
+        }
+    }
+    return (value);
+}
+
+void        asses_buffzone_count(t_fil *fil, t_values *current)
+{
+    t_values  *best_node;
+    int     best_value;
+    int     i;
+
+    i = 0;
+    best_value = 0;
+    while (current != NULL)
+    {
+        if (current->high_value > best_value)
+        {
+            best_value = current->high_value;
+            best_node = current;
+        }
+        current = current->next;
+    }
+    fil->put_piece_y = best_node->y;
+    fil->put_piece_x = best_node->x;
+}
+
+void        wall_off_buffer_zone(t_fil *fil)
+{
+    t_values *head_node;
+    int x;
+    int y;
+
+    head_node = NULL;
+    y = -1;
+    while (++y < fil->board_y)
+    {
+        x = -1;
+        while (++x < fil->board_x)
+        {
+            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
+                head_node = add_to_list(x, y, head_node, buffer_zone_fil_count(fil, x, y)); //need to make buffer zone count... counts the most number of buffer zone squares per piece
+        }
+    }
+    asses_buffzone_count(fil, head_node);
 }
 
 void        placement_start(t_fil *fil)
 {
-  /*  if (buffer_zone_check(fil))
-        fil_rest_of_map(fil);
+   // if (buffer_zone_check(fil))
+   //         fil_rest_of_map(fil);   //still need to make
     if (!buffer_zone_check(fil))
             wall_off_buffer_zone(fil);
-    */
     if (not_near_buffer(fil))
         work_towards_buffer_zone(fil);
 }
@@ -667,12 +752,12 @@ int         main(void)
     t_fil fil;
 
     fil_init(&fil);
-    fil.fd = open("test.txt", O_RDONLY); //for reading the test file
+    //fil.fd = open("test.txt", O_RDONLY); //for reading the test file
     while (get_board(&fil))
     {
         fil.heat_map = heat_map_init(fil.board, fil.board_x, fil.board_y, fil.him);
         placement_start(&fil);
-        //print coordinates function here ?
+        print_coordinates(&fil);
     }
     return (0);
 }
