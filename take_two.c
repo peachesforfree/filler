@@ -3,7 +3,7 @@
 #include "./libft/libft.h"
 #include <stdbool.h>
 
-# define BUFFER_ZONE 15
+# define BUFFER_ZONE 1
 
 typedef struct  s_fil
 {
@@ -333,7 +333,6 @@ int     get_board(t_fil *fil)
 
 int         check_mine(t_fil *fil, int x, int y)
 {
-    //dprintf(2, "\tcheck mine start");
     int xx;
     int yy;
     int count;
@@ -341,6 +340,7 @@ int         check_mine(t_fil *fil, int x, int y)
     count = 0;
     yy = -1;
     xx = -1;
+//dprintf(2, ">\tbegin check_mine\n");
     while (++yy < fil->piece_y)
     {
         while (++xx < fil->piece_x)
@@ -361,12 +361,12 @@ int         check_mine(t_fil *fil, int x, int y)
 
 int         check_his(t_fil *fil, int x, int y)
 {
-//    dprintf(2, "\tcheck his start");
     int xx;
     int yy;
 
     xx = -1;
     yy = -1;
+//dprintf(2, ">\tbegin check_his\n");
     while (++yy < fil->piece_y && (yy + y < fil->board_y))
     {
         while (++xx < fil->piece_x && (xx + x < fil->board_x))
@@ -384,11 +384,18 @@ int         check_his(t_fil *fil, int x, int y)
 
 int         bounds_check(t_fil *fil, int x, int y)
 {
-    //dprintf(2, "\tbounds check start");
+//dprintf(2, ">\tbegin bounds check\t");
     if ((y + fil->piece_bottom) >= fil->board_y)
+    {
+//dprintf(2, "return 0\n");
         return (0);
+    }
     if ((x + fil->piece_right) >= fil->board_x)
+    {
+//dprintf(2, "return 0\n");
         return (0);
+    }
+//dprintf(2, "return 1\n");
     return (1);
 }
 
@@ -524,7 +531,9 @@ int        buffer_zone_check(t_fil *fil)
         while (++x < fil->board_x)
         {
             if (fil->heat_map[y][x] == number && fil->board[y][x] == fil->me)
-                return (0);
+            {
+                 return (0);
+            }
         }
     }
     return (1);
@@ -576,15 +585,18 @@ void        asses_places(t_fil *fil, t_values *current)
 
     i = 0;
     best_value = 1000000000;
+//dprintf(2, ">\trunning thru lnk lst\n");
     while (current != NULL)
     {
         if (current->high_value < best_value)
         {
+//dprintf(2, ">\tloc\tx=%i\ty=%i\tval=%i\n", current->x, current->y, current->high_value);
             best_value = current->high_value;
             best_node = current;
         }
         current = current->next;
     }
+//dprintf(2, ">\tasessplaces x=%i y=%i \n", best_node->x, best_node->y);
     fil->put_piece_y = best_node->y;
     fil->put_piece_x = best_node->x;
 }
@@ -601,13 +613,12 @@ int         highest_piece_value(t_fil *fil, int x_start, int y_start)
     int value;
     int x;
     int y;
-
     y = -1;
     value = 1000000000;
-    while (++y < fil->piece_y )
+    while (++y < fil->piece_y && ((y + y_start) < fil->board_y))
     {
         x = -1;
-        while (++x < fil->piece_x)
+        while (++x < fil->piece_x && ((x + x_start) < fil->board_x))
         {
             if ((fil->heat_map[y + y_start][x + x_start] < value) && (fil->piece[y][x] == '*'))
                 value = fil->heat_map[y + y_start][x + x_start];
@@ -627,9 +638,8 @@ t_values        *add_to_list(int x, int y, t_values *head, int heat_number)
 {
     t_values *temp;
 
+//dprintf(2, ">\tadded_to_list\n");
     temp = (t_values*)malloc(sizeof(t_values));
-    //temp->x = (int*)malloc(sizeof(int));
-    //temp->y = (int*)malloc(sizeof(int));
     temp->x = x;
     temp->y = y;
     temp->high_value = heat_number;
@@ -637,8 +647,7 @@ t_values        *add_to_list(int x, int y, t_values *head, int heat_number)
     return (temp);
 }
 
-
-void        work_towards_buffer_zone(t_fil * fil)
+void        take_anything(t_fil *fil)
 {
     t_values *head_node;
     int x;
@@ -652,31 +661,49 @@ void        work_towards_buffer_zone(t_fil * fil)
         while (++x < fil->board_x)
         {
             if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
-                head_node = add_to_list(x, y, head_node, highest_piece_value(fil, x, y));
+            {
+                fil->put_piece_x = x;
+                fil->put_piece_y = y;
+                return ;
+            }
         }
     }
-    asses_places(fil, head_node);
 }
 
-int         buffer_zone_check(t_fil *fil)
+void        work_towards_buffer_zone(t_fil *fil)
 {
+    t_values *head_node;
     int x;
     int y;
+    int lst_count;
 
+    head_node = NULL;
     y = -1;
+    lst_count = 0;
     while (++y < fil->board_y)
     {
         x = -1;
         while (++x < fil->board_x)
         {
-            if (fil->heat_map[y][x] == (BUFFER_ZONE / 100) && fil->board[y][x] != fil->me)
-                return (0);
+//dprintf(2, ">\tchecking x=%i y=%i\n", x, y);
+            if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
+            {
+                head_node = add_to_list(x, y, head_node, highest_piece_value(fil, x, y));
+//dprintf(2, ">\tnode_work_towards_buffer\tx=%i\ty=%i\tvalue=%i\n", x, y, head_node->high_value);
+                lst_count++;
+            }
         }
     }
-    return (1);
+    if (lst_count > 0)
+    {
+//dprintf(2, ">\tbegin asses places\n");
+        asses_places(fil, head_node);
+    }
+    else
+        take_anything(fil);
 }
 
-int         buffer_zone_count(t_fil *fil, int x_start, int y_start)
+int         buffer_zone_fil_count(t_fil *fil, int x_start, int y_start)
 {
     int value;
     int x;
@@ -684,12 +711,12 @@ int         buffer_zone_count(t_fil *fil, int x_start, int y_start)
 
     y = -1;
     value = 0;
-    while (++y < fil->piece_y )
+    while (++y < fil->piece_y && ((y + y_start) < fil->board_y))
     {
         x = -1;
-        while (++x < fil->piece_x)
+        while (++x < fil->piece_x && ((x + x_start) < fil->board_x))
         {
-            if ((fil->heat_map[y + y_start][x + x_start] == (BUFFER_ZONE / 100)) && (fil->piece[y][x] == '*')) //this part checks for bufferzone number && if piece '*'
+            if ((fil->heat_map[y + y_start][x + x_start] == (fil->board_x * BUFFER_ZONE) / 100) && (fil->piece[y][x] == '*')) //this part checks for bufferzone number && if piece '*'
                 value++;
         }
     }
@@ -713,6 +740,7 @@ void        asses_buffzone_count(t_fil *fil, t_values *current)
         }
         current = current->next;
     }
+//dprintf(2, ">\tasessbuffzone x=%i y=%i \n", best_node->x, best_node->y);
     fil->put_piece_y = best_node->y;
     fil->put_piece_x = best_node->x;
 }
@@ -731,7 +759,10 @@ void        wall_off_buffer_zone(t_fil *fil)
         while (++x < fil->board_x)
         {
             if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
+            {
                 head_node = add_to_list(x, y, head_node, buffer_zone_fil_count(fil, x, y)); //need to make buffer zone count... counts the most number of buffer zone squares per piece
+//dprintf(2, ">\tnode_wall_off_buffer\tx=%i\ty=%i\tvalue=%i\n", x, y, head_node->high_value);
+            }
         }
     }
     asses_buffzone_count(fil, head_node);
@@ -742,9 +773,15 @@ void        placement_start(t_fil *fil)
    // if (buffer_zone_check(fil))
    //         fil_rest_of_map(fil);   //still need to make
     if (!buffer_zone_check(fil))
-            wall_off_buffer_zone(fil);
+    {
+//dprintf(2, ">\tstart wall off buffer zone\n");
+        wall_off_buffer_zone(fil);
+    }
     if (not_near_buffer(fil))
+    {    
+//dprintf(2, ">\tstart work towards buffer zone\n");
         work_towards_buffer_zone(fil);
+    }
 }
 
 int         main(void)
