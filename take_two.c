@@ -72,6 +72,9 @@ void        print_coordinates(t_fil *fil)
     ft_putchar(' ');
     ft_putnbr(fil->put_piece_x);
     ft_putchar('\n');
+    dprintf(2 , "\n>\t\ty=%i\tx=%i\t fil->piece_right = %i\n", fil->put_piece_y, fil->put_piece_x, fil->piece_right);
+    fil->put_piece_y = 0;
+    fil->put_piece_x = 0;
 }
 
 /*
@@ -340,7 +343,7 @@ int         check_mine(t_fil *fil, int x, int y)
     count = 0;
     yy = -1;
     xx = -1;
-//dprintf(2, ">\tbegin check_mine\n");
+//dprintf(2, "check mine x=%i y=%i\n", x, y);
     while (++yy < fil->piece_y)
     {
         while (++xx < fil->piece_x)
@@ -354,9 +357,10 @@ int         check_mine(t_fil *fil, int x, int y)
         }
         xx = -1;
     }
-    if (count != 1)
-        return (0);
-    return (1);
+//dprintf(2, " (mine count %i x=%i y=%i) ", count);
+    if (count == 1)
+        return (1);
+    return (0);
 }
 
 int         check_his(t_fil *fil, int x, int y)
@@ -366,16 +370,18 @@ int         check_his(t_fil *fil, int x, int y)
 
     xx = -1;
     yy = -1;
-//dprintf(2, ">\tbegin check_his\n");
-    while (++yy < fil->piece_y && (yy + y < fil->board_y))
+//dprintf(2, "check his start x=%i Y=%i\n", x, y);
+    while (++yy < fil->piece_y)
     {
-        while (++xx < fil->piece_x && (xx + x < fil->board_x))
+        while (++xx < fil->piece_x)
         {
+        if ((y + yy >= 0) && (x + xx >= 0) && (x + xx < fil->board_x) && (y + yy < fil->board_y))
+        { 
             if ((fil->board[y + yy][x +xx] == fil->him) && (fil->piece[yy][xx] == '*'))
             {
-                //dprintf(2, "hisfound@\t%i\t%i\n", (yy + y), (xx + x));
                 return (0);
             }
+        }
         }
         xx = -1;
     }
@@ -384,18 +390,15 @@ int         check_his(t_fil *fil, int x, int y)
 
 int         bounds_check(t_fil *fil, int x, int y)
 {
-//dprintf(2, ">\tbegin bounds check\t");
-    if ((y + fil->piece_bottom) >= fil->board_y)
-    {
-//dprintf(2, "return 0\n");
+    //dprintf (2, "\nbounchk strt x=%i y=%i\n", x, y);
+    if ((y + fil->piece_bottom + 1) > fil->board_y)
         return (0);
-    }
-    if ((x + fil->piece_right) >= fil->board_x)
-    {
-//dprintf(2, "return 0\n");
+    if ((x + fil->piece_right + 1) > fil->board_x)
         return (0);
-    }
-//dprintf(2, "return 1\n");
+    if (x < (0 - fil->piece_left))
+        return (0);
+    if (y < 0)
+        return (0);
     return (1);
 }
 
@@ -638,7 +641,7 @@ t_values        *add_to_list(int x, int y, t_values *head, int heat_number)
 {
     t_values *temp;
 
-//dprintf(2, ">\tadded_to_list\n");
+//dprintf(2, ">\tadded_to_list\tx=%i\ty=%i\tvalue=%i\n", x, y, heat_number);
     temp = (t_values*)malloc(sizeof(t_values));
     temp->x = x;
     temp->y = y;
@@ -654,12 +657,14 @@ void        take_anything(t_fil *fil)
     int y;
 
     head_node = NULL;
-    y = -1;
+    y = -1 - fil->piece_top;
     while (++y < fil->board_y)
     {
-        x = -1;
+        x = -1 - fil->piece_left;
         while (++x < fil->board_x)
         {
+//dprintf(2, ">\ttakeanything\tx=%i\ty=%i\t\n", x, y);
+
             if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
             {
                 fil->put_piece_x = x;
@@ -678,29 +683,32 @@ void        work_towards_buffer_zone(t_fil *fil)
     int lst_count;
 
     head_node = NULL;
-    y = -1;
+    y = -1 - fil->piece_top;
     lst_count = 0;
-    while (++y < fil->board_y)
+//dprintf(2, ">\tworktobufferzone\n");
+while (++y < fil->board_y)
     {
-        x = -1;
+        x = -1 - fil->piece_left;
         while (++x < fil->board_x)
         {
-//dprintf(2, ">\tchecking x=%i y=%i\n", x, y);
             if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
             {
                 head_node = add_to_list(x, y, head_node, highest_piece_value(fil, x, y));
-//dprintf(2, ">\tnode_work_towards_buffer\tx=%i\ty=%i\tvalue=%i\n", x, y, head_node->high_value);
                 lst_count++;
             }
         }
     }
+//dprintf (2, "lst_count=%i\n", lst_count);
     if (lst_count > 0)
     {
 //dprintf(2, ">\tbegin asses places\n");
         asses_places(fil, head_node);
     }
     else
+    {
+//dprintf(2, ">\tjust take anything\n");
         take_anything(fil);
+    }
 }
 
 int         buffer_zone_fil_count(t_fil *fil, int x_start, int y_start)
@@ -709,11 +717,11 @@ int         buffer_zone_fil_count(t_fil *fil, int x_start, int y_start)
     int x;
     int y;
 
-    y = -1;
+    y = -1 - fil->piece_top;
     value = 0;
     while (++y < fil->piece_y && ((y + y_start) < fil->board_y))
     {
-        x = -1;
+        x = -1 - fil->piece_left;
         while (++x < fil->piece_x && ((x + x_start) < fil->board_x))
         {
             if ((fil->heat_map[y + y_start][x + x_start] == (fil->board_x * BUFFER_ZONE) / 100) && (fil->piece[y][x] == '*')) //this part checks for bufferzone number && if piece '*'
@@ -752,12 +760,14 @@ void        wall_off_buffer_zone(t_fil *fil)
     int y;
 
     head_node = NULL;
-    y = -1;
+    y = -1 - fil->piece_top;    
+//dprintf(2, "Wall off buffer zone\n");
     while (++y < fil->board_y)
     {
-        x = -1;
+        x = -1 - fil->piece_left;
         while (++x < fil->board_x)
         {
+//dprintf(2, "wall off buffer zone\n");
             if(bounds_check(fil, x, y) && check_mine(fil, x, y) && check_his(fil, x, y))
             {
                 head_node = add_to_list(x, y, head_node, buffer_zone_fil_count(fil, x, y)); //need to make buffer zone count... counts the most number of buffer zone squares per piece
@@ -765,6 +775,7 @@ void        wall_off_buffer_zone(t_fil *fil)
             }
         }
     }
+//dprintf(2, "exit wall off buffer zone\n");
     asses_buffzone_count(fil, head_node);
 }
 
@@ -774,12 +785,10 @@ void        placement_start(t_fil *fil)
    //         fil_rest_of_map(fil);   //still need to make
     if (!buffer_zone_check(fil))
     {
-//dprintf(2, ">\tstart wall off buffer zone\n");
         wall_off_buffer_zone(fil);
     }
     if (not_near_buffer(fil))
     {    
-//dprintf(2, ">\tstart work towards buffer zone\n");
         work_towards_buffer_zone(fil);
     }
 }
