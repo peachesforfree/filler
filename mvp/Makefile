@@ -21,13 +21,10 @@ INC = filler.h
 all: $(NAME)
 
 $(NAME): $(LIBS)
-	$(CC) -g $(FLAGS) -o $(NAME) $(SRCS) -I$(INC) $(LIBS) 
+	$(CC) $(FLAGS) $(SRCS) -I$(INC) $(LIBS) -o $(NAME)
 
 $(LIBS):
 	make -C libft
-
-debug:
-	$(CC) -g $(FLAGS) -o $(NAME) $(SRCS) $(INC) $(LIBS)
 
 clean:
 	/bin/rm -f rm $(NAME)
