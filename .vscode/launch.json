@@ -5,10 +5,10 @@
                 "name": "(lldb) Launch",
                 "type": "cppdbg",
                 "request": "launch",
-                "program": "${workspaceRoot}/a.out",
+                "program": "${workspaceRoot}/mvp/sbalcort.filler",
                 "args": [],
                 "stopAtEntry": false,
-                "cwd": "${workspaceRoot}",
+                "cwd": "${workspaceRoot}/mvp",
                 "environment": [],
                 "externalConsole": true,
                 "MIMode": "lldb"

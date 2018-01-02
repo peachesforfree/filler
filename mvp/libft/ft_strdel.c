@@ -6,13 +6,13 @@
 /*   By: sbalcort <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/03/04 23:53:33 by sbalcort          #+#    #+#             */
-/*   Updated: 2017/11/10 21:41:54 by sbalcort         ###   ########.fr       */
+/*   Updated: 2018/01/01 23:41:56 by sbalcort         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "libft.h"
 
-void ft_strdel(char **ap)
+void	ft_strdel(char **ap)
 {
 	if (!ap)
 		return ;
